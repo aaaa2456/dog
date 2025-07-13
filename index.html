@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Falling Dog with Squash & Stretch Fixed</title>
+<style>
+body {
+    background: #0a0a0a;
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+#dog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    display: none;
+    transition: transform 0.1s ease-out;
+    transform-origin: bottom;
+}
+</style>
+</head>
+<body>
+
+<img id="dog" src="dog.gif" alt="dog">
+
+<script>
+const dog = document.getElementById("dog");
+let isDragging = false;
+let offsetX = 0;
+let offsetY = 0;
+
+const normalGif = "dog.gif";
+const draggingGif = "dog2.gif";
+
+const key = 'dog_attempts';
+let attempts = parseInt(localStorage.getItem(key)) || 0;
+
+attempts++;
+if (attempts >= 5) {
+    showDog();
+    attempts = 0;
+} else {
+    const chance = Math.floor(Math.random() * 5) + 1;
+    if (chance === 1) {
+        showDog();
+        attempts = 0;
+    }
+}
+localStorage.setItem(key, attempts);
+
+function showDog() {
+    dog.style.display = "block";
+}
+
+dog.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    offsetX = e.clientX - dog.offsetLeft;
+    offsetY = e.clientY - dog.offsetTop;
+    dog.src = draggingGif;
+    dog.style.cursor = "grabbing";
+    cancelAnimationFrame(fallAnim);
+});
+
+document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    dog.style.left = `${e.clientX - offsetX}px`;
+    dog.style.top = `${e.clientY - offsetY}px`;
+    dog.style.transform = "translate(0, 0) scale(1, 1)";
+});
+
+document.addEventListener("mouseup", () => {
+    if (isDragging) {
+        isDragging = false;
+        dog.src = normalGif;
+        dog.style.cursor = "grab";
+        fall();
+    }
+});
+
+let fallAnim;
+
+function fall() {
+    const startTop = dog.offsetTop;
+    let posY = startTop;
+    let velocity = 0;
+    const gravity = 0.5;
+
+    function animate() {
+        velocity += gravity;
+        posY += velocity;
+
+        if (posY + dog.offsetHeight < window.innerHeight) {
+            dog.style.top = `${posY}px`;
+            fallAnim = requestAnimationFrame(animate);
+        } else {
+            dog.style.top = `${window.innerHeight - dog.offsetHeight}px`;
+            squashStretchEffect(startTop);
+            cancelAnimationFrame(fallAnim);
+        }
+    }
+
+    animate();
+}
+
+function squashStretchEffect(startTop) {
+    const fallDistance = window.innerHeight - startTop - dog.offsetHeight;
+let squashY = Math.max(0.45, 1 - fallDistance / window.innerHeight * 0.55);
+    let stretchX = Math.min(1.4, 1 + (1 - squashY)); 
+    dog.style.transform = `translate(0, 0) scale(${stretchX}, ${squashY})`;
+
+    setTimeout(() => {
+        dog.style.transform = `translate(0, 0) scale(1, 1)`;
+    }, 100);
+}
+</script>
+
+</body>
+</html>
