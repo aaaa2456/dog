@@ -1,0 +1,492 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>Собаки и ковёр (плейсхолдер)</title>
+<style>
+body { background:#0a0a0a;margin:0;height:100vh;overflow:hidden;position:relative;}
+.dog { position:absolute; left:40px; max-width:96px; max-height:96px; cursor:grab; transition:transform .3s ease,opacity .5s ease;}
+.star { position:absolute; opacity:0; transition:opacity 1s ease-out, transform 1s ease-out; pointer-events:none;}
+#carpet{ position:absolute; left:calc(50% + 10px); top:50%; transform:translate(-50%,-50%); width:128px; height:auto; z-index:100;}
+</style>
+
+<style id="star-style">
+.star{
+  position:absolute;
+  width:48px;
+  height:48px;
+  z-index:2000;
+  pointer-events:none;
+  animation:popstar 1.2s ease-out forwards;
+}
+@keyframes popstar{
+  0%{transform:scale(0);opacity:1;}
+  60%{transform:scale(1.3);opacity:1;}
+  100%{transform:scale(1);opacity:0;}
+}
+</style>
+
+
+<style id="dog-fade-style">
+.dog{
+  transition: opacity 0.8s ease-out;
+  opacity: 1;
+}
+</style>
+
+
+<style id="star-style-enhanced">
+.star{
+  position:absolute;
+  pointer-events:none;
+  z-index:2000;
+  --initial-rot:0deg;
+  animation:popspin 1.2s ease-out forwards;
+}
+@keyframes popspin{
+  0%{transform:rotate(var(--initial-rot)) scale(0);opacity:1;}
+  60%{transform:rotate(calc(var(--initial-rot) + 360deg)) scale(1.3);opacity:1;}
+  100%{transform:rotate(calc(var(--initial-rot) + 360deg)) scale(1);opacity:0;}
+}
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+
+
+<style id="dog-nodrag-style">
+.dog{
+  -webkit-user-drag:none;
+  user-select:none;
+  pointer-events:auto;
+}
+</style>
+
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style id="counter-style-simple">
+#dog-counter{
+  position:fixed !important;
+  top:10px !important;
+  left:10px !important;
+  font-family:'Press Start 2P', cursive;
+  font-size:32px;
+  color:#ffffff;
+  text-shadow:2px 2px 4px #000;
+  z-index:1200;
+  pointer-events:none;
+  background:rgba(0,0,0,0.3);
+  padding:2px 6px;
+  border-radius:4px;
+}
+</style>
+
+
+<style id="dog-layer-style">
+.dog{z-index:200 !important;}
+</style>
+</head>
+<body>
+<span id="dog-counter">0</span>
+
+
+
+
+<img id="carpet" src="carpet.png" alt="carpet">
+
+
+
+
+
+
+
+<script>
+const body = document.body;
+const carpet = document.querySelector('#carpet,[src$="carpet.png"]');
+
+// -------- counter -------------
+let landedDogs = 0;
+const counterEl = document.getElementById('dog-counter');
+function updateCounter(){ counterEl.textContent = landedDogs.toString(); }
+// ------------------------------
+
+function fadeOutAndRemove(el, delay=0){
+  setTimeout(()=>{
+    el.style.opacity = 0;
+    setTimeout(()=> el.remove(), 800);
+  }, delay);
+}
+
+// check if dog's center is over carpet top-line
+
+function overCarpet(rect){
+  if(!carpet) return rect.bottom >= window.innerHeight;
+  const cRect = carpet.getBoundingClientRect();
+  const margin = 10; // extra pixels to widen hit‑box on each side
+  const cx = rect.left + rect.width/2;
+  return rect.bottom >= cRect.top && cx >= (cRect.left - margin) && cx <= (cRect.right + margin);
+}
+
+
+function sparkleBurst(x,y){
+  const count = 6;
+  for(let i=0;i<count;i++){
+    const s = document.createElement('img');
+    s.src='star.gif';
+    s.className='star';
+    const size = 24 + Math.random()*32;
+    s.style.width = size+'px';
+    s.style.height = size+'px';
+    const ox = (Math.random()-0.5)*60;
+    const oy = (Math.random()-0.5)*60;
+    s.style.left = (x+ox-size/2)+'px';
+    s.style.top  = (y+oy-size/2)+'px';
+    const rot = Math.floor(Math.random()*360);
+    s.style.setProperty('--initial-rot', rot+'deg');
+    body.appendChild(s);
+    setTimeout(()=>s.remove(),1200);
+  }
+}
+
+function fall(dog){
+  function step(){
+    const rect = dog.getBoundingClientRect();
+    if(overCarpet(rect)){
+      // align with 30px offset
+      if(carpet){
+        const offset = rect.bottom - carpet.getBoundingClientRect().top;
+        dog.style.top = (dog.offsetTop - offset + 30) + 'px';
+      }
+      // count only once
+      if(!dog._counted){
+        landedDogs++;
+        dog._counted = true;
+        updateCounter();
+      }
+      // after 3s vanish with stars
+      setTimeout(()=>{
+        sparkleBurst(dog.offsetLeft+dog.offsetWidth/2,
+                     dog.offsetTop+dog.offsetHeight/2);
+        fadeOutAndRemove(dog);
+      },3000);
+      return;
+    }
+    // fall further
+    dog.style.top = (dog.offsetTop + 5)+'px';
+    dog._animId = requestAnimationFrame(step);
+  }
+  dog._animId = requestAnimationFrame(step);
+}
+
+function spawnDog(){
+  const d = document.createElement('img');
+  d.src='dog.gif';
+  d.className='dog';
+  d.setAttribute('draggable','false');
+  d.style.position='absolute';
+  d.style.top='0px';
+  d.style.opacity='0';
+  body.appendChild(d);
+
+  requestAnimationFrame(()=>{
+    const w=d.offsetWidth||100;
+    const maxLeft=window.innerWidth - w;
+    d.style.left = Math.floor(Math.random()*maxLeft)+'px';
+    setTimeout(()=>{d.style.opacity=1;}, 20);
+  });
+
+  // start fall after short delay if not dragged
+  setTimeout(()=>{ if(!d._dragging) fall(d); }, 800);
+
+  let ox=0, oy=0;
+  d._dragging=false;
+
+  d.addEventListener('mousedown', e=>{
+    e.preventDefault();
+    d._dragging=true;
+    if(d._animId) cancelAnimationFrame(d._animId);
+    d.src='dog2.gif';
+    ox = e.clientX - d.offsetLeft;
+    oy = e.clientY - d.offsetTop;
+
+    const move = ev=>{
+      if(!d._dragging) return;
+      d.style.left=(ev.clientX - ox)+'px';
+      d.style.top =(ev.clientY - oy)+'px';
+    };
+    const up = ()=>{
+      if(!d._dragging) return;
+      d._dragging=false;
+      d.src='dog.gif';
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      fall(d);
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+// counter position
+setInterval(()=>{
+  for(let i=0;i<spawnCount;i++){ spawnDog(); }
+  if(spawnCount < 10) spawnCount++; // cap at 10
+}, 3000);
+
+
+// progressive shorter interval spawn
+let spawnInterval = 3000;      // start at 3s
+const minInterval = 500;       // cap at 0.5s
+function scheduleSpawn(){
+  spawnDog();
+  spawnInterval = Math.max(minInterval, spawnInterval - 200); // reduce by 200ms
+  setTimeout(scheduleSpawn, spawnInterval);
+}
+setTimeout(scheduleSpawn, spawnInterval);
+
+
+
+
+
+function repositionCounter(){
+  const carpetEl = carpet;
+  if (carpetEl && carpetEl.complete){
+      const rect = carpetEl.getBoundingClientRect();
+      if(rect.width>0 && rect.height>0){
+        counterEl.style.left = (rect.right - 75) + 'px'; // 60 px left of right edge
+        counterEl.style.top  = (rect.top + rect.height * 0.4 + 34) + 'px'; // slightly above mid
+        return;
+      }
+  }
+  // fallback default
+  counterEl.style.left = 'calc(100% - 120px)';
+  counterEl.style.top  = '20px';
+}
+window.addEventListener('load', repositionCounter);
+window.addEventListener('resize', repositionCounter);
+// reposition periodically until carpet size stabilizes
+let repTries=0;
+(function repLoop(){
+  repositionCounter();
+  if(repTries < 60){ // 2s @33ms
+     repTries++; requestAnimationFrame(repLoop);
+  }
+})();
+
+</script>
+
+
+
+
+
+
+
+
+<script>
+// --------- Mega Dog finale ---------
+let megaDogTriggered = false;
+let gameEnded = false;
+
+// override counter update to watch for 100
+const _oldUpdateCounter = updateCounter;
+updateCounter = function(){
+  _oldUpdateCounter();
+  if(!megaDogTriggered && landedDogs >= 100){
+      triggerMegaDog();
+  }
+};
+
+function triggerMegaDog(){
+  // play fall sound for mega dog when it starts falling
+  try {
+    const fallSound = new Audio('megadog_fall.mp3');
+    fallSound.volume = 0.8;
+    fallSound.play().catch(()=>{});
+  } catch(e) {}
+
+  megaDogTriggered = true;
+
+  // screen overlay for sunrise effect
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,0);pointer-events:none;z-index:1400;transition:background 2s linear';
+  document.body.appendChild(overlay);
+  // brighten slowly
+  setTimeout(()=>{overlay.style.background='rgba(255,255,255,1)';},50);
+
+  // create huge dog
+  const mega = document.createElement('img');
+  mega.src = 'dog.gif';
+  mega.className = 'mega-dog';
+  mega.style.cssText = 'position:absolute;top:-400px;left:50%;transform:translateX(-50%);width:400px;z-index:1200;pointer-events:none;';
+  document.body.appendChild(mega);
+
+  // glide across screen
+  const travelDown = window.innerHeight + 600; // start -300 to +300 past right edge
+  mega.style.transition = 'top 5s linear';
+  requestAnimationFrame(()=>{ mega.style.top = travelDown + 'px'; });
+
+  // when finished -> boom
+  mega.addEventListener('transitionend', ()=>megaBoom(mega, overlay));
+}
+
+function megaBoom(mega, overlay){
+  // star explosion
+  const rect = mega.getBoundingClientRect();
+  for(let i=0;i<40;i++){
+    sparkleBurst(rect.left+rect.width/2, rect.top+rect.height/2, 32+Math.random()*32);
+  }
+  sparkleBurst(rect.left+rect.width/2, rect.top+rect.height/2, 64);
+
+  mega.remove();
+
+// show ending video after 1s
+setTimeout(()=>{
+    const vid=document.createElement('video');
+    vid.src='credits.mp4';
+    vid.autoplay=true;
+    vid.loop=false;
+    vid.controls=false;
+    vid.muted=false;
+    vid.style.cssText='position:fixed;inset:0;z-index:1600;width:100%;height:100%;object-fit:contain;background:#000;';
+    document.body.appendChild(vid);
+    if(window.__bgMusicController && window.__bgMusicController.playFinale){
+        window.__bgMusicController.playFinale();
+    }
+}, 1000);
+
+// show ending text after 4s
+  setTimeout(()=>{
+    if(window.__bgMusicController && window.__bgMusicController.playFinale){ window.__bgMusicController.playFinale(); }
+    }, 4000);
+endGame();
+  }
+
+function sparkleBurst(cx, cy, size=24){
+  for(let n=0;n<12;n++){
+    const s=document.createElement('img');
+    s.src='star.gif';
+    s.className='star';
+    s.style.width=size+'px';
+    document.body.appendChild(s);
+    const angle=Math.random()*2*Math.PI;
+    const dist = Math.random()*120+40;
+    s.style.left=(cx - size/2)+'px';
+    s.style.top =(cy - size/2)+'px';
+    requestAnimationFrame(()=>{
+      s.style.opacity=1;
+      s.style.transform = 'translate('+ (Math.cos(angle)*dist) +'px,'+ (Math.sin(angle)*dist) +'px) rotate('+ (Math.random()*360)+'deg)';
+    });
+    setTimeout(()=>s.remove(), 1600);
+  }
+}
+
+function endGame(){
+  gameEnded = true;
+  // stop spawning any new dogs
+  if(typeof scheduleSpawn === 'function'){
+    scheduleSpawn = function(){};
+  }
+  if(typeof spawnDog === 'function'){
+    spawnDog = function(){};
+  }
+
+  // remove existing dogs after short delay
+  document.querySelectorAll('.dog').forEach(d=>{ fadeOutAndRemove(d); });
+
+  
+// show концовка через 4 с
+setTimeout(() => {
+  
+}, 4000);
+}
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+/* === Robust Audio Controller v4 === */
+(function(){
+  if(window.__bgMusicController){ return; } // prevent duplicates
+  const ctrl = {};
+  const bg = new Audio('sandy_board.mp3');
+  bg.loop = true;
+  bg.volume = 0.7;
+  bg.playbackRate = 1.0;
+
+  function accelerate(){
+    if(bg.playbackRate < 2.0){
+      bg.playbackRate = +(bg.playbackRate + 0.05).toFixed(2);
+      setTimeout(accelerate, 5000);
+    }
+  }
+
+  let started = false;
+  function startBg(){
+    if(started) return;
+    started = true;
+    bg.play().catch(()=>{});
+    accelerate();
+  }
+
+  window.addEventListener('pointerdown', () => startBg(), { once: true });
+
+  ctrl.pause = () => { if(!bg.paused) bg.pause(); };
+  ctrl.resume = () => { if(bg.paused) bg.play().catch(()=>{}); };
+
+  const finale = new Audio('sponsors.mp3');
+  finale.volume = 0.2; // quieter
+  ctrl.playFinale = () => { finale.play().catch(()=>{}); };
+
+  window.__bgMusicController = ctrl;
+
+  /* --- Auto-pause when mega dog appears --- */
+  const observe = new MutationObserver((mutations) => {
+    for(const m of mutations){
+      for(const node of m.addedNodes){
+        if(!(node instanceof Element)) continue;
+        const el = node;
+        // Detect mega dog (id or class)
+        if(el.id === 'mega-dog' || el.classList.contains('megaDog') || el.classList.contains('mega-dog')){
+          ctrl.pause();
+        }
+        // Detect THE END overlay/text
+        if(el.textContent && (/THE\s*END/i.test(el.textContent) .test(el.textContent))){
+          ctrl.pause();
+          ctrl.playFinale();
+        }
+      }
+    }
+  });
+  observe.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+</body>
+</html>
